@@ -1,0 +1,131 @@
+import pool from '../config/database.js';
+
+export const customerController = {
+  // Get all customers
+  getAllCustomers: async (req, res) => {
+    try {
+      const [rows] = await pool.query('SELECT * FROM Customer ORDER BY Cust_id DESC');
+      res.json(rows);
+    } catch (error) {
+      console.error('Error getting all customers:', error);
+      res.status(500).json({ error: error.message });
+    }
+  },
+
+  // Get customer by ID
+  getCustomerById: async (req, res) => {
+    try {
+      const [rows] = await pool.query('SELECT * FROM Customer WHERE Cust_id = ?', [req.params.id]);
+      if (rows.length === 0) {
+        return res.status(404).json({ message: 'Customer not found' });
+      }
+      res.json(rows[0]);
+    } catch (error) {
+      console.error('Error getting customer by ID:', error);
+      res.status(500).json({ error: error.message });
+    }
+  },
+
+  // Get next customer ID
+  getNextCustomerId: async (req, res) => {
+    try {
+      const [rows] = await pool.query('SELECT MAX(Cust_id) as maxId FROM Customer');
+      const nextId = rows[0].maxId ? parseInt(rows[0].maxId) + 1 : 1;
+      res.json({ nextId });
+    } catch (error) {
+      console.error('Error getting next customer ID:', error);
+      res.status(500).json({ error: error.message });
+    }
+  },
+
+  // Add new customer using stored procedure
+  addCustomer: async (req, res) => {
+    const { Cust_name, Phone_no, Email } = req.body;
+    try {
+      // Get next customer ID
+      const [rows] = await pool.query('SELECT MAX(Cust_id) as maxId FROM Customer');
+      const Cust_id = rows[0].maxId ? parseInt(rows[0].maxId) + 1 : 1;
+
+      // Start a transaction
+      await pool.query('START TRANSACTION');
+      
+      // Call the stored procedure to add the customer
+      await pool.query('CALL AddCustomer(?, ?, ?, ?)', [Cust_id, Cust_name, Phone_no, Email]);
+      
+      // Commit the transaction
+      await pool.query('COMMIT');
+      
+      res.status(201).json({ 
+        id: Cust_id,
+        message: 'Customer added successfully' 
+      });
+    } catch (error) {
+      // Rollback in case of error
+      await pool.query('ROLLBACK');
+      console.error('Error adding customer:', error);
+      res.status(500).json({ error: error.message });
+    }
+  },
+
+  // Update customer
+  updateCustomer: async (req, res) => {
+    const { Cust_name, Phone_no, Email } = req.body;
+    try {
+      // Start a transaction
+      await pool.query('START TRANSACTION');
+      
+      const [result] = await pool.query(
+        'UPDATE Customer SET Cust_name = ?, Phone_no = ?, Email = ? WHERE Cust_id = ?',
+        [Cust_name, Phone_no, Email, req.params.id]
+      );
+      
+      if (result.affectedRows === 0) {
+        await pool.query('ROLLBACK');
+        return res.status(404).json({ message: 'Customer not found' });
+      }
+      
+      // Commit the transaction
+      await pool.query('COMMIT');
+      
+      res.json({ message: 'Customer updated successfully' });
+    } catch (error) {
+      // Rollback in case of error
+      await pool.query('ROLLBACK');
+      console.error('Error updating customer:', error);
+      res.status(500).json({ error: error.message });
+    }
+  },
+
+  // Delete customer
+  deleteCustomer: async (req, res) => {
+    try {
+      // Start a transaction
+      await pool.query('START TRANSACTION');
+      
+      // Check if customer has orders
+      const [orders] = await pool.query('SELECT COUNT(*) as count FROM Orders WHERE Cust_id = ?', [req.params.id]);
+      
+      if (orders[0].count > 0) {
+        await pool.query('ROLLBACK');
+        return res.status(400).json({ message: 'Cannot delete customer with existing orders' });
+      }
+      
+      const [result] = await pool.query('DELETE FROM Customer WHERE Cust_id = ?', [req.params.id]);
+      
+      if (result.affectedRows === 0) {
+        await pool.query('ROLLBACK');
+        return res.status(404).json({ message: 'Customer not found' });
+      }
+      
+      // Commit the transaction
+      await pool.query('COMMIT');
+      
+      res.json({ message: 'Customer deleted successfully' });
+    } catch (error) {
+      // Rollback in case of error
+      await pool.query('ROLLBACK');
+      console.error('Error deleting customer:', error);
+      res.status(500).json({ error: error.message });
+    }
+  }
+};
