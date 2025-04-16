@@ -17,19 +17,19 @@ const CustomerList = () => {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: number) => {
+    mutationFn: async (id) => {
       await axios.delete(`http://localhost:5000/api/customers/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['customers'] });
       toast.success('Customer deleted successfully');
     },
-    onError: (error: Error) => {
+    onError: (error) => {
       toast.error(`Failed to delete customer: ${error.message}`);
     },
   });
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this customer?')) {
       deleteMutation.mutate(id);
     }
@@ -72,7 +72,7 @@ const CustomerList = () => {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {customers.map((customer: any) => (
+            {customers.map((customer) => (
               <tr key={customer.Cust_id}>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   {customer.Cust_id}

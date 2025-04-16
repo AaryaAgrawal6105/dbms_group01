@@ -5,28 +5,13 @@ import { toast } from 'react-hot-toast';
 import { Save, ArrowLeft } from 'lucide-react';
 import axios from 'axios';
 
-interface LinkedStockFormData {
-  Jewellery_id: number;
-  Model_No: string;
-  Unit_id: string;
-  Weight: number;
-  Size: string;
-  Status: string;
-}
-
-interface Jewellery {
-  Jewellery_id: number;
-  Type: string;
-  Description: string;
-}
-
 function LinkedStockForm() {
   const { jewellery_id, model_no, unit_id } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const isEditMode = Boolean(jewellery_id && model_no && unit_id);
 
-  const [formData, setFormData] = useState<LinkedStockFormData>({
+  const [formData, setFormData] = useState({
     Jewellery_id: 0,
     Model_No: '',
     Unit_id: '',
@@ -63,7 +48,7 @@ function LinkedStockForm() {
   }, [linkedStockData]);
 
   const mutation = useMutation({
-    mutationFn: async (data: LinkedStockFormData) => {
+    mutationFn: async (data) => {
       if (isEditMode) {
         const response = await axios.put(
           `http://localhost:5000/api/linked_stock/${jewellery_id}/${model_no}/${unit_id}`,
@@ -87,12 +72,12 @@ function LinkedStockForm() {
       toast.success(`Linked stock ${isEditMode ? 'updated' : 'created'} successfully`);
       navigate('/linked-stock');
     },
-    onError: (error: any) => {
+    onError: (error) => {
       toast.error(`Error: ${error.message}`);
     }
   });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
@@ -100,7 +85,7 @@ function LinkedStockForm() {
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
     mutation.mutate(formData);
   };
@@ -139,7 +124,7 @@ function LinkedStockForm() {
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
           >
             <option value="">Select a jewellery item</option>
-            {jewelleryItems?.map((item: Jewellery) => (
+            {jewelleryItems?.map((item) => (
               <option key={item.Jewellery_id} value={item.Jewellery_id}>
                 {item.Type} - {item.Description}
               </option>

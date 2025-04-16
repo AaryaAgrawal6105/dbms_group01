@@ -3,29 +3,13 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 
-interface JewelleryFormData {
-  jewellery_id: string;
-  type: string;
-  description: string;
-  hsn: string;
-  quantity: number;
-}
-
-interface JewelleryData {
-  Jewellery_id: string;
-  Type: string;
-  Description: string;
-  HSN: string;
-  Quantity: number;
-}
-
 function JewelleryForm() {
   const { id } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const isEditMode = Boolean(id);
 
-  const [formData, setFormData] = useState<JewelleryFormData>({
+  const [formData, setFormData] = useState({
     jewellery_id: '',
     type: '',
     description: '',
@@ -33,10 +17,10 @@ function JewelleryForm() {
     quantity: 0
   });
 
-  const { isLoading: isLoadingJewellery, data: jewelleryData } = useQuery<JewelleryData>({
+  const { isLoading: isLoadingJewellery, data: jewelleryData } = useQuery({
     queryKey: ['jewellery', id],
     queryFn: async () => {
-      if (!id) return null as any;
+      if (!id) return null;
       const response = await fetch(`http://localhost:5000/api/jewellery/${id}`);
       if (!response.ok) {
         throw new Error('Failed to fetch jewellery');
@@ -60,7 +44,7 @@ function JewelleryForm() {
   }, [jewelleryData]);
 
   const mutation = useMutation({
-    mutationFn: async (data: JewelleryFormData) => {
+    mutationFn: async (data) => {
       const url = isEditMode ? `http://localhost:5000/api/jewellery/${id}` : 'http://localhost:5000/api/jewellery';
       const method = isEditMode ? 'PUT' : 'POST';
       
@@ -88,12 +72,12 @@ function JewelleryForm() {
     },
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
     mutation.mutate(formData);
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+  const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,

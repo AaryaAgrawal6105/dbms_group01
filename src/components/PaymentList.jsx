@@ -5,21 +5,10 @@ import { DollarSign, Edit2, Trash2 } from 'lucide-react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
-interface Payment {
-  Payment_id: number;
-  Order_id: number;
-  Amount: number;
-  Payment_date: string;
-  Payment_mode: string;
-  Order_date: string;
-  Total_price: number;
-  Cust_name: string;
-}
-
 function PaymentList() {
   const queryClient = useQueryClient();
 
-  const { data: payments, isLoading, error } = useQuery<Payment[]>({
+  const { data: payments, isLoading, error } = useQuery({
     queryKey: ['payment'],
     queryFn: async () => {
       const response = await axios.get('http://localhost:5000/api/payment');
@@ -28,26 +17,26 @@ function PaymentList() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: number) => {
+    mutationFn: async (id) => {
       await axios.delete(`http://localhost:5000/api/payment/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['payment'] });
       toast.success('Payment deleted successfully');
     },
-    onError: (error: Error) => {
+    onError: (error) => {
       toast.error(`Failed to delete payment: ${error.message}`);
     },
   });
 
-  const handleDelete = (id: number) => {
+  const handleDelete = (id) => {
     if (window.confirm('Are you sure you want to delete this payment?')) {
       deleteMutation.mutate(id);
     }
   };
 
   // Format payment mode to be more readable
-  const formatPaymentMode = (mode: string) => {
+  const formatPaymentMode = (mode) => {
     if (!mode) return 'Unknown';
     
     // Convert snake_case to Title Case

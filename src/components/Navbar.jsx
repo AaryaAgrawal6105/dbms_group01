@@ -5,7 +5,7 @@ import { Diamond, Users, ShoppingBag, CreditCard, BarChart2, Package } from 'luc
 const Navbar = () => {
   const location = useLocation();
 
-  const isActive = (path: string) => {
+  const isActive = (path) => {
     return location.pathname.startsWith(path) ? 'bg-purple-700' : '';
   };
 

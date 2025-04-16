@@ -4,29 +4,13 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
-interface Payment {
-  Payment_id: number;
-  Order_id: number;
-  Amount: number;
-  Payment_date: string;
-  Payment_time: string;
-  Payment_mode: string;
-}
-
-interface Order {
-  Order_id: number;
-  Cust_id: number;
-  Total_price: number;
-  Cust_name: string; 
-}
-
-const PaymentForm: React.FC = () => {
+const PaymentForm = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const isEditMode = Boolean(id);
 
-  const [formData, setFormData] = useState<Payment>({
+  const [formData, setFormData] = useState({
     Payment_id: 0,
     Order_id: 0,
     Amount: 0,
@@ -82,7 +66,7 @@ const PaymentForm: React.FC = () => {
   // Set default amount based on selected order
   useEffect(() => {
     if (formData.Order_id && orders) {
-      const selectedOrder = orders.find((order: Order) => order.Order_id === formData.Order_id);
+      const selectedOrder = orders.find(order => order.Order_id === formData.Order_id);
       if (selectedOrder) {
         setFormData(prev => ({ ...prev, Amount: selectedOrder.Total_price }));
       }
@@ -90,7 +74,7 @@ const PaymentForm: React.FC = () => {
   }, [formData.Order_id, orders]);
 
   const mutation = useMutation({
-    mutationFn: async (data: Payment) => {
+    mutationFn: async (data) => {
       if (isEditMode) {
         const response = await axios.put(`http://localhost:5000/api/payment/${id}`, data);
         return response.data;
@@ -104,17 +88,17 @@ const PaymentForm: React.FC = () => {
       toast.success(`Payment ${isEditMode ? 'updated' : 'added'} successfully`);
       navigate('/payment');
     },
-    onError: (error: any) => {
+    onError: (error) => {
       toast.error(`Failed to ${isEditMode ? 'update' : 'add'} payment: ${error.message}`);
     },
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
     mutation.mutate(formData);
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
@@ -158,7 +142,7 @@ const PaymentForm: React.FC = () => {
             disabled={isEditMode}
           >
             <option value="">Select an order</option>
-            {orders?.map((order: Order) => (
+            {orders?.map(order => (
               <option key={order.Order_id} value={order.Order_id}>
                 Order #{order.Order_id} - {order.Cust_name || 'Unknown'} (₹{order.Total_price})
               </option>

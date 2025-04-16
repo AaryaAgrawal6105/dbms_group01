@@ -2,16 +2,8 @@ import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { PlusCircle } from 'lucide-react';
 
-interface Jewellery {
-  Jewellery_id: string;
-  Type: string;
-  Description: string;
-  HSN: string;
-  Quantity: number;
-}
-
 function JewelleryList() {
-  const { data: jewellery, isLoading, error } = useQuery<Jewellery[]>({
+  const { data: jewellery, isLoading, error } = useQuery({
     queryKey: ['jewellery'],
     queryFn: async () => {
       const response = await fetch('http://localhost:5000/api/jewellery');

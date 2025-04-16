@@ -5,14 +5,6 @@ import { Edit2, Trash2 } from 'lucide-react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
-interface Order {
-  Order_id: number;
-  Cust_id: number;
-  Order_date: string;
-  Total_price: string | number;
-  Cust_name: string; 
-}
-
 const OrderList = () => {
   const queryClient = useQueryClient();
   
@@ -25,19 +17,19 @@ const OrderList = () => {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: number) => {
+    mutationFn: async (id) => {
       await axios.delete(`http://localhost:5000/api/orders/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['orders'] });
       toast.success('Order deleted successfully');
     },
-    onError: (error: Error) => {
+    onError: (error) => {
       toast.error(`Failed to delete order: ${error.message}`);
     },
   });
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this order?')) {
       deleteMutation.mutate(id);
     }
@@ -80,7 +72,7 @@ const OrderList = () => {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {orders.map((order: Order) => (
+            {orders.map((order) => (
               <tr key={order.Order_id}>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   {order.Order_id}

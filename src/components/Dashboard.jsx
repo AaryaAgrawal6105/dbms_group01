@@ -96,7 +96,7 @@ const Dashboard = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {salesByDate?.recentSales?.map((sale: any, index: number) => (
+                {salesByDate?.recentSales?.map((sale, index) => (
                   <tr key={`sale-${sale.date}-${index}`}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{sale.date}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">₹{sale.total}</td>
@@ -118,7 +118,7 @@ const Dashboard = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {availableJewellery?.items?.map((item: any, index: number) => (
+                {availableJewellery?.items?.map((item, index) => (
                   <tr key={`jewellery-${item.type}-${index}`}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.type}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.quantity}</td>

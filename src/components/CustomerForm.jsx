@@ -4,20 +4,13 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
-interface CustomerData {
-  Cust_id: number;
-  Cust_name: string;
-  Phone_no: string;
-  Email: string;
-}
-
 const CustomerForm = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const isEditMode = Boolean(id);
   
-  const [formData, setFormData] = useState<CustomerData>({
+  const [formData, setFormData] = useState({
     Cust_id: 0,
     Cust_name: '',
     Phone_no: '',
@@ -62,7 +55,7 @@ const CustomerForm = () => {
   }, [customer]);
 
   const mutation = useMutation({
-    mutationFn: async (data: CustomerData) => {
+    mutationFn: async (data) => {
       if (isEditMode) {
         const response = await axios.put(`http://localhost:5000/api/customers/${id}`, data);
         return response.data;
@@ -76,12 +69,12 @@ const CustomerForm = () => {
       toast.success(isEditMode ? 'Customer updated successfully' : 'Customer added successfully');
       navigate('/customers');
     },
-    onError: (error: any) => {
+    onError: (error) => {
       toast.error(`Failed to save customer: ${error.message}`);
     },
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
     try {
       // Validate form data
@@ -91,12 +84,12 @@ const CustomerForm = () => {
       }
       
       mutation.mutate(formData);
-    } catch (error: any) {
+    } catch (error) {
       toast.error(`An error occurred: ${error.message}`);
     }
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,

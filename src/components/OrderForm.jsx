@@ -4,41 +4,14 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import axios from 'axios';
 
-interface OrderFormData {
-  Order_id: number;
-  Cust_id: number;
-  Order_date: string;
-  Total_price: number;
-  details?: OrderDetailItem[];
-}
-
-interface OrderDetailItem {
-  Jewellery_id: number;
-  Quantity: number;
-  Amount: number;
-}
-
-interface Customer {
-  Cust_id: number;
-  Cust_name: string;
-}
-
-interface Jewellery {
-  Jewellery_id: number;
-  Type: string;
-  Description: string;
-  HSN: string;
-  Quantity: number;
-}
-
-const OrderForm: React.FC = () => {
+const OrderForm = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const isEditing = Boolean(id);
 
   // Form state
-  const [formData, setFormData] = useState<OrderFormData>({
+  const [formData, setFormData] = useState({
     Order_id: 0,
     Cust_id: 0,
     Order_date: new Date().toISOString().split('T')[0],
@@ -101,7 +74,7 @@ const OrderForm: React.FC = () => {
 
   // Handle form submission
   const mutation = useMutation({
-    mutationFn: async (data: OrderFormData) => {
+    mutationFn: async (data) => {
       const url = isEditing ? `http://localhost:5000/api/orders/${id}` : 'http://localhost:5000/api/orders';
       const method = isEditing ? 'PUT' : 'POST';
       
@@ -121,17 +94,17 @@ const OrderForm: React.FC = () => {
       toast.success(isEditing ? 'Order updated successfully' : 'Order created successfully');
       navigate('/orders');
     },
-    onError: (error: any) => {
+    onError: (error) => {
       toast.error(error.message || 'Failed to save order');
     },
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
     mutation.mutate(formData);
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
@@ -153,7 +126,7 @@ const OrderForm: React.FC = () => {
   };
 
   // Update a detail item
-  const updateDetailItem = (index: number, field: keyof OrderDetailItem, value: any) => {
+  const updateDetailItem = (index, field, value) => {
     const updatedDetails = [...(formData.details || [])];
     updatedDetails[index] = {
       ...updatedDetails[index],
@@ -164,7 +137,7 @@ const OrderForm: React.FC = () => {
 
     // If jewellery item or quantity changed, update the amount
     if (field === 'Jewellery_id' || field === 'Quantity') {
-      const jewelleryItem = jewellery?.find((j: Jewellery) => j.Jewellery_id === Number(value));
+      const jewelleryItem = jewellery?.find(j => j.Jewellery_id === Number(value));
       if (jewelleryItem && field === 'Jewellery_id') {
         // Set a default price based on jewellery type
         const basePrice = jewelleryItem.Type.includes('Gold') ? 5000 :
@@ -173,11 +146,11 @@ const OrderForm: React.FC = () => {
         updatedDetails[index].Amount = basePrice * updatedDetails[index].Quantity;
       } else if (field === 'Quantity') {
         const jewelleryId = updatedDetails[index].Jewellery_id;
-        const jewelleryItem = jewellery?.find((j: Jewellery) => j.Jewellery_id === jewelleryId);
+        const jewelleryItem = jewellery?.find(j => j.Jewellery_id === jewelleryId);
         if (jewelleryItem) {
           const basePrice = jewelleryItem.Type.includes('Gold') ? 5000 :
-                          jewelleryItem.Type.includes('Silver') ? 2000 :
-                          jewelleryItem.Type.includes('Diamond') ? 10000 : 1000;
+                         jewelleryItem.Type.includes('Silver') ? 2000 :
+                         jewelleryItem.Type.includes('Diamond') ? 10000 : 1000;
           updatedDetails[index].Amount = basePrice * Number(value);
         }
       }
@@ -194,7 +167,7 @@ const OrderForm: React.FC = () => {
   };
 
   // Remove a detail item
-  const removeDetailItem = (index: number) => {
+  const removeDetailItem = (index) => {
     const updatedDetails = [...(formData.details || [])];
     updatedDetails.splice(index, 1);
     
@@ -243,7 +216,7 @@ const OrderForm: React.FC = () => {
               required
             >
               <option value="">Select a customer</option>
-              {customers?.map((customer: Customer) => (
+              {customers?.map(customer => (
                 <option key={customer.Cust_id} value={customer.Cust_id}>
                   {customer.Cust_name}
                 </option>
@@ -313,7 +286,7 @@ const OrderForm: React.FC = () => {
                           required
                         >
                           <option value="">Select jewellery</option>
-                          {jewellery?.map((item: Jewellery) => (
+                          {jewellery?.map(item => (
                             <option key={item.Jewellery_id} value={item.Jewellery_id}>
                               {item.Type} - {item.Description}
                             </option>

@@ -5,22 +5,10 @@ import { PlusCircle, Package, Edit2, Trash2 } from 'lucide-react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 
-interface LinkedStockItem {
-  Jewellery_id: number;
-  Model_No: string;
-  Unit_id: string;
-  Weight: number;
-  Size: string;
-  Status: string;
-  Sold_at: string | null;
-  Type?: string;
-  Description?: string;
-}
-
 function LinkedStockList() {
   const queryClient = useQueryClient();
 
-  const { data: linkedStockItems, isLoading, error } = useQuery<LinkedStockItem[]>({
+  const { data: linkedStockItems, isLoading, error } = useQuery({
     queryKey: ['linked_stock'],
     queryFn: async () => {
       const response = await axios.get('http://localhost:5000/api/linked_stock');
@@ -29,19 +17,19 @@ function LinkedStockList() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (keys: { jewellery_id: number, model_no: string, unit_id: string }) => {
+    mutationFn: async (keys) => {
       await axios.delete(`http://localhost:5000/api/linked_stock/${keys.jewellery_id}/${keys.model_no}/${keys.unit_id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['linked_stock'] });
       toast.success('Linked stock item deleted successfully');
     },
-    onError: (error: any) => {
+    onError: (error) => {
       toast.error(`Failed to delete linked stock item: ${error.message}`);
     },
   });
 
-  const handleDelete = (jewellery_id: number, model_no: string, unit_id: string) => {
+  const handleDelete = (jewellery_id, model_no, unit_id) => {
     if (window.confirm('Are you sure you want to delete this linked stock item?')) {
       deleteMutation.mutate({ jewellery_id, model_no, unit_id });
     }
