@@ -67,7 +67,7 @@ export const linked_stockController = {
 
   // Add new linked_stock
   addlinked_stock: async (req, res) => {
-    const { jewellery_id, model_no, unit_id, weight, size, sold_at, quantity } = req.body;
+    const { jewellery_id, model_no, unit_id, weight, size, status, sold_at, quantity } = req.body;
     try {
       // Start a transaction
       await pool.query('START TRANSACTION');

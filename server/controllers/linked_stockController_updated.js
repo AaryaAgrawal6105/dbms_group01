@@ -67,7 +67,7 @@ export const linked_stockController = {
 
   // Add new linked_stock
   addlinked_stock: async (req, res) => {
-    const { jewellery_id, model_no, unit_id, weight, size, sold_at, quantity } = req.body;
+    const { jewellery_id, model_no, unit_id, weight, size, status, sold_at, quantity } = req.body;
     try {
       // Start a transaction
       await pool.query('START TRANSACTION');
@@ -111,7 +111,7 @@ export const linked_stockController = {
       const model_no = decodeURIComponent(req.params.model_no);
       const unit_id = parseInt(req.params.unit_id);
       
-      // Extract data from request body
+      // Extract ALL data from request body
       const { Weight, Size, Sold_at, Quantity } = req.body;
       
       console.log('Updating linked stock with params:', { jewellery_id, model_no, unit_id });

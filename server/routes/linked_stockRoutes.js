@@ -6,6 +6,9 @@ const router = express.Router();
 // Get all linked stock items
 router.get('/', linked_stockController.getAlllinked_stock);
 
+// Get available stock
+router.get('/available', linked_stockController.getAvailableStock);
+
 // Get linked stock by jewellery ID
 router.get('/jewellery/:id', linked_stockController.getlinked_stockByJewelleryId);
 
@@ -23,8 +26,5 @@ router.delete('/:jewellery_id/:model_no/:unit_id', linked_stockController.delete
 
 // Update linked stock status
 router.patch('/status/:jewellery_id/:model_no/:unit_id', linked_stockController.updateLinkedStockStatus);
-
-// Get available stock
-router.get('/available/all', linked_stockController.getAvailableStock);
 
 export default router;

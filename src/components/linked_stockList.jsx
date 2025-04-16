@@ -84,6 +84,12 @@ function LinkedStockList() {
                 Size
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Quantity
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Price (₹)
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Status
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -103,20 +109,30 @@ function LinkedStockList() {
                     </div>
                   </div>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   {item.Model_No}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   {item.Unit_id}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  {item.Weight}g
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {item.Weight} g
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   {item.Size}
                 </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {item.Quantity || 1}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {item.Sold_at ? `₹${Number(item.Sold_at).toFixed(2)}` : 'Not set'}
+                </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${item.Status === 'Available' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                    item.Status === 'Available' ? 'bg-green-100 text-green-800' :
+                    item.Status === 'Sold' ? 'bg-red-100 text-red-800' :
+                    'bg-yellow-100 text-yellow-800'
+                  }`}>
                     {item.Status}
                   </span>
                 </td>
@@ -124,28 +140,20 @@ function LinkedStockList() {
                   <div className="flex space-x-2">
                     <Link
                       to={`/edit-linked-stock/${item.Jewellery_id}/${item.Model_No}/${item.Unit_id}`}
-                      className="text-blue-600 hover:text-blue-900"
+                      className="text-indigo-600 hover:text-indigo-900"
                     >
-                      <Edit2 className="h-5 w-5" />
+                      <Edit2 className="w-5 h-5" />
                     </Link>
                     <button
                       onClick={() => handleDelete(item.Jewellery_id, item.Model_No, item.Unit_id)}
                       className="text-red-600 hover:text-red-900"
-                      disabled={deleteMutation.isPending}
                     >
-                      <Trash2 className="h-5 w-5" />
+                      <Trash2 className="w-5 h-5" />
                     </button>
                   </div>
                 </td>
               </tr>
             ))}
-            {!linkedStockItems?.length && (
-              <tr>
-                <td colSpan={7} className="px-6 py-4 text-center text-gray-500">
-                  No linked stock items found
-                </td>
-              </tr>
-            )}
           </tbody>
         </table>
       </div>

@@ -1,12 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { Edit2, Trash2 } from 'lucide-react';
+import { Edit2, Trash2, Eye } from 'lucide-react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import OrderDetails from './OrderDetails';
 
 const OrderList = () => {
   const queryClient = useQueryClient();
+  const [selectedOrderId, setSelectedOrderId] = useState(null);
   
   const { data: orders, isLoading, error } = useQuery({
     queryKey: ['orders'],
@@ -33,6 +35,14 @@ const OrderList = () => {
     if (window.confirm('Are you sure you want to delete this order?')) {
       deleteMutation.mutate(id);
     }
+  };
+  
+  const handleViewDetails = (orderId) => {
+    setSelectedOrderId(orderId);
+  };
+  
+  const handleCloseDetails = () => {
+    setSelectedOrderId(null);
   };
 
   if (isLoading) return <div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div></div>;
@@ -73,7 +83,11 @@ const OrderList = () => {
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {orders.map((order) => (
-              <tr key={order.Order_id}>
+              <tr 
+                key={order.Order_id} 
+                className="hover:bg-gray-50 cursor-pointer"
+                onClick={() => handleViewDetails(order.Order_id)}
+              >
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   {order.Order_id}
                 </td>
@@ -90,15 +104,28 @@ const OrderList = () => {
                   ₹{Number(order.Total_price).toFixed(2)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                  <div className="flex space-x-2">
+                  <div className="flex space-x-2" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleViewDetails(order.Order_id);
+                      }}
+                      className="text-blue-600 hover:text-blue-900"
+                    >
+                      <Eye className="h-5 w-5" />
+                    </button>
                     <Link
                       to={`/edit-order/${order.Order_id}`}
                       className="text-indigo-600 hover:text-indigo-900"
+                      onClick={(e) => e.stopPropagation()}
                     >
                       <Edit2 className="h-5 w-5" />
                     </Link>
                     <button
-                      onClick={() => handleDelete(order.Order_id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDelete(order.Order_id);
+                      }}
                       className="text-red-600 hover:text-red-900"
                       disabled={deleteMutation.isPending}
                     >
@@ -111,6 +138,14 @@ const OrderList = () => {
           </tbody>
         </table>
       </div>
+      
+      {/* Order Details Modal */}
+      {selectedOrderId && (
+        <OrderDetails 
+          orderId={selectedOrderId} 
+          onClose={handleCloseDetails} 
+        />
+      )}
     </div>
   );
 };

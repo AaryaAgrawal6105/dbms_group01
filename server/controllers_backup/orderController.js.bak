@@ -1,4 +1,5 @@
 import pool from '../config/database.js';
+import { updateStockForOrder, restoreStockForOrder } from '../utils/stockUtils.js';
 
 export const orderController = {
   // Get all orders
@@ -105,19 +106,22 @@ export const orderController = {
             });
           }
           
-          const currentQuantity = Number(stockItem[0].Quantity);
-          const newQuantity = currentQuantity - Number(detail.Quantity);
+          const currentQuantity = stockItem[0].Quantity;
+          const newQuantity = currentQuantity - detail.Quantity;
           
-          // Determine status based on new quantity
-          const newStatus = newQuantity <= 0 ? 'Sold' : 'Available';
-          
-          // Update linked stock quantity and status in a single query
+          // Update linked stock quantity
           await pool.query(
-            'UPDATE Linked_Stock SET Quantity = ?, Status = ? WHERE Jewellery_id = ? AND Model_No = ? AND Unit_id = ?',
-            [newQuantity, newStatus, detail.Jewellery_id, detail.Model_No, detail.Unit_id]
+            'UPDATE Linked_Stock SET Quantity = ? WHERE Jewellery_id = ? AND Model_No = ? AND Unit_id = ?',
+            [newQuantity, detail.Jewellery_id, detail.Model_No, detail.Unit_id]
           );
           
-          console.log(`Updated linked stock: Jewellery ID ${detail.Jewellery_id}, Model ${detail.Model_No}, Unit ${detail.Unit_id}, New Quantity: ${newQuantity}, Status: ${newStatus}`);
+          // If quantity becomes 0 or less, update status to 'Sold'
+          if (newQuantity <= 0) {
+            await pool.query(
+              'UPDATE Linked_Stock SET Status = ? WHERE Jewellery_id = ? AND Model_No = ? AND Unit_id = ?',
+              ['Sold', detail.Jewellery_id, detail.Model_No, detail.Unit_id]
+            );
+          }
           
           // Update jewellery quantity
           await pool.query(
@@ -151,51 +155,58 @@ export const orderController = {
       // Start a transaction
       await pool.query('START TRANSACTION');
       
-      // Get existing order details to restore stock
-      const [existingDetails] = await pool.query(
-        'SELECT * FROM Order_Details WHERE Order_id = ?',
-        [Order_id]
-      );
-      
-      // Restore stock for existing items
-      for (const oldDetail of existingDetails) {
-        // Get current stock quantity
-        const [stockItem] = await pool.query(
-          'SELECT Quantity FROM Linked_Stock WHERE Jewellery_id = ? AND Model_No = ? AND Unit_id = ?',
-          [oldDetail.Jewellery_id, oldDetail.Model_No, oldDetail.Unit_id]
-        );
-        
-        if (stockItem.length > 0) {
-          const currentQuantity = Number(stockItem[0].Quantity);
-          const newQuantity = currentQuantity + Number(oldDetail.Quantity);
-          
-          // Update linked stock quantity and status
-          await pool.query(
-            'UPDATE Linked_Stock SET Quantity = ?, Status = ? WHERE Jewellery_id = ? AND Model_No = ? AND Unit_id = ?',
-            [newQuantity, 'Available', oldDetail.Jewellery_id, oldDetail.Model_No, oldDetail.Unit_id]
-          );
-          
-          // Update jewellery quantity
-          await pool.query(
-            'UPDATE Jewellery SET Quantity = Quantity + ? WHERE Jewellery_id = ?',
-            [oldDetail.Quantity, oldDetail.Jewellery_id]
-          );
-        }
-      }
-      
-      // Delete existing order details
-      await pool.query('DELETE FROM Order_Details WHERE Order_id = ?', [Order_id]);
-      
-      // Update order
-      await pool.query(
+      // Update the order
+      const [orderResult] = await pool.query(
         'UPDATE Orders SET Cust_id = ?, Order_date = ?, Total_price = ? WHERE Order_id = ?',
         [Cust_id, Order_date, Total_price, Order_id]
       );
       
-      // Insert new order details
+      if (orderResult.affectedRows === 0) {
+        await pool.query('ROLLBACK');
+        return res.status(404).json({ message: 'Order not found' });
+      }
+      
+      // If details are provided, update them
       if (details && Array.isArray(details) && details.length > 0) {
+        // Get current order details to reset stock status if needed
+        const [currentDetails] = await pool.query(
+          'SELECT * FROM Order_Details WHERE Order_id = ?', 
+          [Order_id]
+        );
+        
+        // Reset linked stock quantity for items that were previously in the order
+        for (const oldDetail of currentDetails) {
+          if (oldDetail.Model_No && oldDetail.Unit_id) {
+            // Get current stock quantity
+            const [stockItem] = await pool.query(
+              'SELECT Quantity FROM Linked_Stock WHERE Jewellery_id = ? AND Model_No = ? AND Unit_id = ?',
+              [oldDetail.Jewellery_id, oldDetail.Model_No, oldDetail.Unit_id]
+            );
+            
+            if (stockItem.length > 0) {
+              const currentQuantity = stockItem[0].Quantity;
+              const newQuantity = currentQuantity + oldDetail.Quantity;
+              
+              // Update linked stock quantity
+              await pool.query(
+                'UPDATE Linked_Stock SET Quantity = ?, Status = ? WHERE Jewellery_id = ? AND Model_No = ? AND Unit_id = ?',
+                [newQuantity, 'Available', oldDetail.Jewellery_id, oldDetail.Model_No, oldDetail.Unit_id]
+              );
+              
+              // Update jewellery quantity
+              await pool.query(
+                'UPDATE Jewellery SET Quantity = Quantity + ? WHERE Jewellery_id = ?',
+                [oldDetail.Quantity, oldDetail.Jewellery_id]
+              );
+            }
+          }
+        }
+        
+        // Delete existing details
+        await pool.query('DELETE FROM Order_Details WHERE Order_id = ?', [Order_id]);
+        
+        // Insert new details
         for (const detail of details) {
-          // Insert order detail
           await pool.query(
             'INSERT INTO Order_Details (Order_id, Jewellery_id, Quantity, Date, Amount, Model_No, Unit_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
             [
@@ -222,17 +233,22 @@ export const orderController = {
             });
           }
           
-          const currentQuantity = Number(stockItem[0].Quantity);
-          const newQuantity = currentQuantity - Number(detail.Quantity);
-          
-          // Determine status based on new quantity
-          const newStatus = newQuantity <= 0 ? 'Sold' : 'Available';
+          const currentQuantity = stockItem[0].Quantity;
+          const newQuantity = currentQuantity - detail.Quantity;
           
           // Update linked stock quantity
           await pool.query(
-            'UPDATE Linked_Stock SET Quantity = ?, Status = ? WHERE Jewellery_id = ? AND Model_No = ? AND Unit_id = ?',
-            [newQuantity, newStatus, detail.Jewellery_id, detail.Model_No, detail.Unit_id]
+            'UPDATE Linked_Stock SET Quantity = ? WHERE Jewellery_id = ? AND Model_No = ? AND Unit_id = ?',
+            [newQuantity, detail.Jewellery_id, detail.Model_No, detail.Unit_id]
           );
+          
+          // If quantity becomes 0 or less, update status to 'Sold'
+          if (newQuantity <= 0) {
+            await pool.query(
+              'UPDATE Linked_Stock SET Status = ? WHERE Jewellery_id = ? AND Model_No = ? AND Unit_id = ?',
+              ['Sold', detail.Jewellery_id, detail.Model_No, detail.Unit_id]
+            );
+          }
           
           // Update jewellery quantity
           await pool.query(
@@ -256,56 +272,57 @@ export const orderController = {
 
   // Delete order
   deleteOrder: async (req, res) => {
-    const Order_id = req.params.id;
-    
     try {
       // Start a transaction
       await pool.query('START TRANSACTION');
       
-      // Get order details to restore stock
-      const [details] = await pool.query(
-        'SELECT * FROM Order_Details WHERE Order_id = ?',
-        [Order_id]
+      // Get current order details to reset stock status
+      const [currentDetails] = await pool.query(
+        'SELECT * FROM Order_Details WHERE Order_id = ?', 
+        [req.params.id]
       );
       
-      // Restore stock for each item
-      for (const detail of details) {
-        // Get current stock quantity
-        const [stockItem] = await pool.query(
-          'SELECT Quantity FROM Linked_Stock WHERE Jewellery_id = ? AND Model_No = ? AND Unit_id = ?',
-          [detail.Jewellery_id, detail.Model_No, detail.Unit_id]
-        );
-        
-        if (stockItem.length > 0) {
-          const currentQuantity = Number(stockItem[0].Quantity);
-          const newQuantity = currentQuantity + Number(detail.Quantity);
-          
-          // Update linked stock quantity and status
-          await pool.query(
-            'UPDATE Linked_Stock SET Quantity = ?, Status = ? WHERE Jewellery_id = ? AND Model_No = ? AND Unit_id = ?',
-            [newQuantity, 'Available', detail.Jewellery_id, detail.Model_No, detail.Unit_id]
+      // Reset linked stock status for items in the order
+      for (const detail of currentDetails) {
+        if (detail.Model_No && detail.Unit_id) {
+          // Get current stock quantity
+          const [stockItem] = await pool.query(
+            'SELECT Quantity FROM Linked_Stock WHERE Jewellery_id = ? AND Model_No = ? AND Unit_id = ?',
+            [detail.Jewellery_id, detail.Model_No, detail.Unit_id]
           );
           
-          // Update jewellery quantity
-          await pool.query(
-            'UPDATE Jewellery SET Quantity = Quantity + ? WHERE Jewellery_id = ?',
-            [detail.Quantity, detail.Jewellery_id]
-          );
+          if (stockItem.length > 0) {
+            const currentQuantity = stockItem[0].Quantity;
+            const newQuantity = currentQuantity + detail.Quantity;
+            
+            // Update linked stock quantity
+            await pool.query(
+              'UPDATE Linked_Stock SET Quantity = ?, Status = ? WHERE Jewellery_id = ? AND Model_No = ? AND Unit_id = ?',
+              [newQuantity, 'Available', detail.Jewellery_id, detail.Model_No, detail.Unit_id]
+            );
+            
+            // Update jewellery quantity
+            await pool.query(
+              'UPDATE Jewellery SET Quantity = Quantity + ? WHERE Jewellery_id = ?',
+              [detail.Quantity, detail.Jewellery_id]
+            );
+          }
         }
       }
       
       // Delete order details
-      await pool.query('DELETE FROM Order_Details WHERE Order_id = ?', [Order_id]);
+      await pool.query('DELETE FROM Order_Details WHERE Order_id = ?', [req.params.id]);
       
-      // Delete order
-      const [result] = await pool.query('DELETE FROM Orders WHERE Order_id = ?', [Order_id]);
+      // Delete the order
+      const [result] = await pool.query('DELETE FROM Orders WHERE Order_id = ?', [req.params.id]);
+      
+      if (result.affectedRows === 0) {
+        await pool.query('ROLLBACK');
+        return res.status(404).json({ message: 'Order not found' });
+      }
       
       // Commit the transaction
       await pool.query('COMMIT');
-      
-      if (result.affectedRows === 0) {
-        return res.status(404).json({ message: 'Order not found' });
-      }
       
       res.json({ message: 'Order deleted successfully' });
     } catch (error) {
@@ -316,5 +333,3 @@ export const orderController = {
     }
   }
 };
-
-export default orderController;

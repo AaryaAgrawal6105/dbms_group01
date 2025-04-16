@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
-import { BarChart2, TrendingUp, Package, CreditCard } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { BarChart2, TrendingUp, Package, CreditCard, FileText } from 'lucide-react';
 
 const Dashboard = () => {
   const { data: salesByDate, isLoading: isLoadingSales, error: salesError } = useQuery({
@@ -40,7 +41,16 @@ const Dashboard = () => {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+        <Link
+          to="/reports"
+          className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+        >
+          <FileText className="h-4 w-4 mr-2" />
+          View Reports
+        </Link>
+      </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white p-6 rounded-lg shadow">
@@ -129,6 +139,7 @@ const Dashboard = () => {
           </div>
         </div>
       </div>
+
     </div>
   );
 };

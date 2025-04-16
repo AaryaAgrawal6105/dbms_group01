@@ -17,7 +17,9 @@ function LinkedStockForm() {
     Unit_id: '',
     Weight: 0,
     Size: '',
-    Status: 'Available'
+    Status: 'Available',
+    Sold_at: 0,
+    Quantity: 1
   });
 
   // Fetch jewellery for dropdown
@@ -62,7 +64,9 @@ function LinkedStockForm() {
           unit_id: data.Unit_id,
           weight: data.Weight,
           size: data.Size,
-          status: data.Status
+          status: data.Status,
+          sold_at: data.Sold_at,
+          quantity: data.Quantity
         });
         return response.data;
       }
@@ -78,10 +82,10 @@ function LinkedStockForm() {
   });
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
+    const { name, value, type } = e.target;
+    setFormData((prev) => ({
       ...prev,
-      [name]: ['Jewellery_id', 'Weight'].includes(name) ? Number(value) : value
+      [name]: type === 'number' ? Number(value) : value,
     }));
   };
 
@@ -192,6 +196,39 @@ function LinkedStockForm() {
             value={formData.Size}
             onChange={handleChange}
             required
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+          />
+        </div>
+
+        <div>
+          <label htmlFor="Quantity" className="block text-sm font-medium text-gray-700">
+            Quantity
+          </label>
+          <input
+            type="number"
+            id="Quantity"
+            name="Quantity"
+            value={formData.Quantity}
+            onChange={handleChange}
+            required
+            min="1"
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+          />
+        </div>
+
+        <div>
+          <label htmlFor="Sold_at" className="block text-sm font-medium text-gray-700">
+            Price (₹)
+          </label>
+          <input
+            type="number"
+            id="Sold_at"
+            name="Sold_at"
+            value={formData.Sold_at}
+            onChange={handleChange}
+            required
+            min="0"
+            step="0.01"
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
           />
         </div>

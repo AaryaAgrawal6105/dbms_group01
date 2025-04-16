@@ -67,37 +67,25 @@ export const linked_stockController = {
 
   // Add new linked_stock
   addlinked_stock: async (req, res) => {
-    const { jewellery_id, model_no, unit_id, weight, size, sold_at, quantity } = req.body;
+    const { jewellery_id, model_no, unit_id, weight, size, status, sold_at, quantity } = req.body;
     try {
-      // Start a transaction
-      await pool.query('START TRANSACTION');
-
-      // Determine the status based on quantity
-      const newQuantity = Number(quantity) || 1;
-      const newStatus = newQuantity <= 0 ? 'Sold' : 'Available';
-
       // Insert the linked stock item
       const [result] = await pool.query(
         'INSERT INTO Linked_Stock (Jewellery_id, Model_No, Unit_id, Weight, Size, Status, Sold_at, Quantity) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-        [jewellery_id, model_no, unit_id, weight, size, newStatus, sold_at || null, newQuantity]
+        [jewellery_id, model_no, unit_id, weight, size, status || 'Available', sold_at || null, quantity || 1]
       );
       
       // Update the jewellery quantity
       await pool.query(
         'UPDATE Jewellery SET Quantity = Quantity + ? WHERE Jewellery_id = ?',
-        [newQuantity, jewellery_id]
+        [quantity || 1, jewellery_id]
       );
-      
-      // Commit the transaction
-      await pool.query('COMMIT');
       
       res.status(201).json({
         message: 'Linked stock added successfully',
-        data: { jewellery_id, model_no, unit_id, status: newStatus, quantity: newQuantity }
+        data: { jewellery_id, model_no, unit_id }
       });
     } catch (error) {
-      // Rollback in case of error
-      await pool.query('ROLLBACK');
       console.error('Error adding linked stock:', error);
       res.status(500).json({ error: error.message });
     }
@@ -111,7 +99,7 @@ export const linked_stockController = {
       const model_no = decodeURIComponent(req.params.model_no);
       const unit_id = parseInt(req.params.unit_id);
       
-      // Extract data from request body
+      // Extract ALL data from request body
       const { Weight, Size, Sold_at, Quantity } = req.body;
       
       console.log('Updating linked stock with params:', { jewellery_id, model_no, unit_id });
@@ -138,6 +126,8 @@ export const linked_stockController = {
       const oldQuantity = Number(current.Quantity);
       const newQuantity = Number(Quantity);
       const quantityDifference = newQuantity - oldQuantity;
+      
+      console.log('Quantity calculation:', { oldQuantity, newQuantity, quantityDifference });
       
       // 3. Determine status based on quantity
       const newStatus = newQuantity <= 0 ? 'Sold' : 'Available';
@@ -196,9 +186,6 @@ export const linked_stockController = {
       const model_no = decodeURIComponent(req.params.model_no);
       const unit_id = parseInt(req.params.unit_id);
       
-      // Start a transaction
-      await pool.query('START TRANSACTION');
-      
       // Get the current quantity
       const [currentItems] = await pool.query(
         'SELECT Quantity FROM Linked_Stock WHERE Jewellery_id = ? AND Model_No = ? AND Unit_id = ?',
@@ -206,11 +193,13 @@ export const linked_stockController = {
       );
       
       if (currentItems.length === 0) {
-        await pool.query('ROLLBACK');
         return res.status(404).json({ message: 'Linked stock item not found' });
       }
       
-      const quantity = Number(currentItems[0].Quantity);
+      const quantity = parseInt(currentItems[0].Quantity) || 1;
+      
+      // Start a transaction
+      await pool.query('START TRANSACTION');
       
       // Delete the linked stock item
       const [result] = await pool.query(
@@ -218,7 +207,7 @@ export const linked_stockController = {
         [jewellery_id, model_no, unit_id]
       );
       
-      // Update jewellery quantity
+      // Update the jewellery quantity
       await pool.query(
         'UPDATE Jewellery SET Quantity = Quantity - ? WHERE Jewellery_id = ?',
         [quantity, jewellery_id]
@@ -239,7 +228,39 @@ export const linked_stockController = {
       res.status(500).json({ error: error.message });
     }
   },
-
+  
+  // Update linked stock status
+  updateLinkedStockStatus: async (req, res) => {
+    try {
+      // Decode URI components to handle spaces and special characters
+      const jewellery_id = parseInt(req.params.jewellery_id);
+      const model_no = decodeURIComponent(req.params.model_no);
+      const unit_id = parseInt(req.params.unit_id);
+      
+      const { status } = req.body;
+      
+      // Set the output parameter
+      await pool.query(`SET @status = '${status}'`);
+      
+      // Call the stored procedure
+      await pool.query(
+        'CALL UpdateLinkedStockStatus(?, ?, ?, @status)',
+        [jewellery_id, model_no, unit_id]
+      );
+      
+      // Get the output parameter value
+      const [result] = await pool.query('SELECT @status as updatedStatus');
+      
+      res.json({ 
+        message: 'Status updated successfully', 
+        updatedStatus: result[0].updatedStatus 
+      });
+    } catch (error) {
+      console.error('Error updating linked stock status:', error);
+      res.status(500).json({ error: error.message });
+    }
+  },
+  
   // Get available stock
   getAvailableStock: async (req, res) => {
     try {
@@ -254,66 +275,5 @@ export const linked_stockController = {
       console.error('Error getting available stock:', error);
       res.status(500).json({ error: error.message });
     }
-  },
-
-  // Update linked stock status
-  updateLinkedStockStatus: async (req, res) => {
-    try {
-      // Decode URI components to handle spaces and special characters
-      const jewellery_id = parseInt(req.params.jewellery_id);
-      const model_no = decodeURIComponent(req.params.model_no);
-      const unit_id = parseInt(req.params.unit_id);
-      
-      const { status } = req.body;
-      
-      // Get current quantity
-      const [currentItems] = await pool.query(
-        'SELECT Quantity FROM Linked_Stock WHERE Jewellery_id = ? AND Model_No = ? AND Unit_id = ?',
-        [jewellery_id, model_no, unit_id]
-      );
-      
-      if (currentItems.length === 0) {
-        return res.status(404).json({ message: 'Linked stock item not found' });
-      }
-      
-      const quantity = Number(currentItems[0].Quantity);
-      
-      // If status is 'Available' but quantity is 0, set quantity to 1
-      let newQuantity = quantity;
-      if (status === 'Available' && quantity <= 0) {
-        newQuantity = 1;
-      }
-      
-      // If status is 'Sold' but quantity is > 0, set quantity to 0
-      if (status === 'Sold' && quantity > 0) {
-        newQuantity = 0;
-      }
-      
-      // Update the linked stock status and quantity if needed
-      await pool.query(
-        'UPDATE Linked_Stock SET Status = ?, Quantity = ? WHERE Jewellery_id = ? AND Model_No = ? AND Unit_id = ?',
-        [status, newQuantity, jewellery_id, model_no, unit_id]
-      );
-      
-      // If quantity changed, update jewellery quantity
-      if (newQuantity !== quantity) {
-        const quantityDifference = newQuantity - quantity;
-        await pool.query(
-          'UPDATE Jewellery SET Quantity = Quantity + ? WHERE Jewellery_id = ?',
-          [quantityDifference, jewellery_id]
-        );
-      }
-      
-      res.json({ 
-        message: 'Status updated successfully', 
-        updatedStatus: status,
-        updatedQuantity: newQuantity
-      });
-    } catch (error) {
-      console.error('Error updating linked stock status:', error);
-      res.status(500).json({ error: error.message });
-    }
   }
 };
-
-export default linked_stockController;
