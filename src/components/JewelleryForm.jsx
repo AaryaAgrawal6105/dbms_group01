@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
+import axios from 'axios';
 
 function JewelleryForm() {
   const { id } = useParams();
@@ -17,20 +18,27 @@ function JewelleryForm() {
     quantity: 0
   });
 
+  // Fetch next jewellery ID when adding a new jewellery
+  const { data: nextIdData } = useQuery({
+    queryKey: ['nextJewelleryId'],
+    queryFn: async () => {
+      const response = await axios.get('http://localhost:5000/api/jewellery/next-id');
+      return response.data;
+    },
+    enabled: !isEditMode,
+  });
+
   const { isLoading: isLoadingJewellery, data: jewelleryData } = useQuery({
     queryKey: ['jewellery', id],
     queryFn: async () => {
       if (!id) return null;
-      const response = await fetch(`http://localhost:5000/api/jewellery/${id}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch jewellery');
-      }
-      return response.json();
+      const response = await axios.get(`http://localhost:5000/api/jewellery/${id}`);
+      return response.data;
     },
     enabled: isEditMode
   });
 
-  // Update form data when jewellery data is loaded
+  // Update form data when jewellery data is loaded (for edit mode)
   useEffect(() => {
     if (jewelleryData) {
       setFormData({
@@ -43,24 +51,34 @@ function JewelleryForm() {
     }
   }, [jewelleryData]);
 
+  // Set next jewellery ID when available (for add mode)
+  useEffect(() => {
+    if (nextIdData && !isEditMode) {
+      setFormData(prev => ({ ...prev, jewellery_id: nextIdData.nextId }));
+    }
+  }, [nextIdData, isEditMode]);
+
   const mutation = useMutation({
     mutationFn: async (data) => {
       const url = isEditMode ? `http://localhost:5000/api/jewellery/${id}` : 'http://localhost:5000/api/jewellery';
       const method = isEditMode ? 'PUT' : 'POST';
       
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      });
-
-      if (!response.ok) {
+      try {
+        const response = await axios({
+          method,
+          url,
+          data,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+        return response.data;
+      } catch (error) {
+        if (error.response && error.response.data && error.response.data.error) {
+          throw new Error(error.response.data.error);
+        }
         throw new Error('Failed to save jewellery');
       }
-
-      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['jewellery'] });
@@ -103,6 +121,7 @@ function JewelleryForm() {
             onChange={handleChange}
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
             required
+            readOnly
           />
         </div>
 

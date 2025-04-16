@@ -17,6 +17,14 @@ const CustomerForm = () => {
     Email: '',
   });
 
+  // Add state for field-specific errors
+  const [errors, setErrors] = useState({
+    Cust_name: '',
+    Phone_no: '',
+    Email: '',
+    general: ''
+  });
+
   // Get next customer ID
   const { data: nextIdData } = useQuery({
     queryKey: ['nextCustomerId'],
@@ -54,14 +62,45 @@ const CustomerForm = () => {
     }
   }, [customer]);
 
+  // Clear field error when user starts typing in that field
+  const clearError = (field) => {
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: '' }));
+    }
+  };
+
   const mutation = useMutation({
     mutationFn: async (data) => {
-      if (isEditMode) {
-        const response = await axios.put(`http://localhost:5000/api/customers/${id}`, data);
-        return response.data;
-      } else {
-        const response = await axios.post('http://localhost:5000/api/customers', data);
-        return response.data;
+      try {
+        if (isEditMode) {
+          const response = await axios.put(`http://localhost:5000/api/customers/${id}`, data);
+          return response.data;
+        } else {
+          const response = await axios.post('http://localhost:5000/api/customers', data);
+          return response.data;
+        }
+      } catch (error) {
+        // Handle API errors with specific messages
+        if (error.response) {
+          // The server responded with a status code outside the 2xx range
+          if (error.response.status === 400) {
+            // Extract the error message from the response
+            const errorMessage = error.response.data.error || 'Validation error';
+            
+            // Set field-specific errors
+            if (errorMessage.includes('Email already exists')) {
+              setErrors(prev => ({ ...prev, Email: 'This email is already in use' }));
+            } else if (errorMessage.includes('Phone number already exists')) {
+              setErrors(prev => ({ ...prev, Phone_no: 'This phone number is already in use' }));
+            } else {
+              setErrors(prev => ({ ...prev, general: errorMessage }));
+            }
+            
+            throw new Error(errorMessage);
+          }
+        }
+        // For other errors, throw a generic message
+        throw new Error('Failed to save customer. Please try again later.');
       }
     },
     onSuccess: () => {
@@ -70,23 +109,55 @@ const CustomerForm = () => {
       navigate('/customers');
     },
     onError: (error) => {
-      toast.error(`Failed to save customer: ${error.message}`);
+      // Display the error message in a user-friendly way
+      toast.error(error.message);
     },
   });
 
+  const validateForm = () => {
+    let isValid = true;
+    const newErrors = { Cust_name: '', Phone_no: '', Email: '', general: '' };
+    
+    // Validate name
+    if (!formData.Cust_name.trim()) {
+      newErrors.Cust_name = 'Name is required';
+      isValid = false;
+    }
+    
+    // Validate phone number
+    if (!formData.Phone_no.trim()) {
+      newErrors.Phone_no = 'Phone number is required';
+      isValid = false;
+    } else if (!/^\d{10}$/.test(formData.Phone_no.trim())) {
+      newErrors.Phone_no = 'Please enter a valid 10-digit phone number';
+      isValid = false;
+    }
+    
+    // Validate email
+    if (!formData.Email.trim()) {
+      newErrors.Email = 'Email is required';
+      isValid = false;
+    } else if (!/\S+@\S+\.\S+/.test(formData.Email.trim())) {
+      newErrors.Email = 'Please enter a valid email address';
+      isValid = false;
+    }
+    
+    setErrors(newErrors);
+    return isValid;
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    try {
-      // Validate form data
-      if (!formData.Cust_name || !formData.Phone_no || !formData.Email) {
-        toast.error('Please fill in all required fields');
-        return;
-      }
-      
-      mutation.mutate(formData);
-    } catch (error) {
-      toast.error(`An error occurred: ${error.message}`);
+    
+    // Reset all errors
+    setErrors({ Cust_name: '', Phone_no: '', Email: '', general: '' });
+    
+    // Validate form
+    if (!validateForm()) {
+      return;
     }
+    
+    mutation.mutate(formData);
   };
 
   const handleChange = (e) => {
@@ -95,6 +166,9 @@ const CustomerForm = () => {
       ...prev,
       [name]: name === 'Cust_id' ? Number(value) : value
     }));
+    
+    // Clear error for the field being edited
+    clearError(name);
   };
 
   return (
@@ -102,6 +176,13 @@ const CustomerForm = () => {
       <h2 className="text-2xl font-semibold text-gray-800 mb-6">
         {isEditMode ? 'Edit Customer' : 'Add New Customer'}
       </h2>
+      
+      {errors.general && (
+        <div className="mb-4 p-3 bg-red-50 border border-red-300 text-red-700 rounded-md">
+          {errors.general}
+        </div>
+      )}
+      
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-gray-700">Customer ID</label>
@@ -122,9 +203,14 @@ const CustomerForm = () => {
             name="Cust_name"
             value={formData.Cust_name}
             onChange={handleChange}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500"
+            className={`mt-1 block w-full rounded-md shadow-sm focus:border-purple-500 focus:ring-purple-500 ${
+              errors.Cust_name ? 'border-red-300' : 'border-gray-300'
+            }`}
             required
           />
+          {errors.Cust_name && (
+            <p className="mt-1 text-sm text-red-600">{errors.Cust_name}</p>
+          )}
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700">Phone Number</label>
@@ -133,9 +219,14 @@ const CustomerForm = () => {
             name="Phone_no"
             value={formData.Phone_no}
             onChange={handleChange}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500"
+            className={`mt-1 block w-full rounded-md shadow-sm focus:border-purple-500 focus:ring-purple-500 ${
+              errors.Phone_no ? 'border-red-300' : 'border-gray-300'
+            }`}
             required
           />
+          {errors.Phone_no && (
+            <p className="mt-1 text-sm text-red-600">{errors.Phone_no}</p>
+          )}
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700">Email</label>
@@ -144,9 +235,14 @@ const CustomerForm = () => {
             name="Email"
             value={formData.Email}
             onChange={handleChange}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500"
+            className={`mt-1 block w-full rounded-md shadow-sm focus:border-purple-500 focus:ring-purple-500 ${
+              errors.Email ? 'border-red-300' : 'border-gray-300'
+            }`}
             required
           />
+          {errors.Email && (
+            <p className="mt-1 text-sm text-red-600">{errors.Email}</p>
+          )}
         </div>
         <div className="flex justify-end space-x-3">
           <button

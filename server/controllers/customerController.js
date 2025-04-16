@@ -38,7 +38,7 @@ export const customerController = {
     }
   },
 
-  // Add new customer using stored procedure
+  // Add new customer
   addCustomer: async (req, res) => {
     const { Cust_name, Phone_no, Email } = req.body;
     try {
@@ -49,20 +49,37 @@ export const customerController = {
       // Start a transaction
       await pool.query('START TRANSACTION');
       
-      // Call the stored procedure to add the customer
-      await pool.query('CALL AddCustomer(?, ?, ?, ?)', [Cust_id, Cust_name, Phone_no, Email]);
-      
-      // Commit the transaction
-      await pool.query('COMMIT');
-      
-      res.status(201).json({ 
-        id: Cust_id,
-        message: 'Customer added successfully' 
-      });
+      try {
+        // Insert directly instead of using stored procedure
+        await pool.query(
+          'INSERT INTO Customer (Cust_id, Cust_name, Phone_no, Email) VALUES (?, ?, ?, ?)',
+          [Cust_id, Cust_name, Phone_no, Email]
+        );
+        
+        // Commit the transaction
+        await pool.query('COMMIT');
+        
+        res.status(201).json({ 
+          id: Cust_id,
+          message: 'Customer added successfully' 
+        });
+      } catch (insertError) {
+        // Rollback in case of error
+        await pool.query('ROLLBACK');
+        
+        if (insertError.code === 'ER_DUP_ENTRY') {
+          if (insertError.message.includes('Email')) {
+            return res.status(400).json({ error: 'Email already exists' });
+          } else if (insertError.message.includes('Phone_no')) {
+            return res.status(400).json({ error: 'Phone number already exists' });
+          }
+        }
+        
+        console.error('Error adding customer:', insertError);
+        res.status(500).json({ error: insertError.message });
+      }
     } catch (error) {
-      // Rollback in case of error
-      await pool.query('ROLLBACK');
-      console.error('Error adding customer:', error);
+      console.error('Error in customer creation process:', error);
       res.status(500).json({ error: error.message });
     }
   },
