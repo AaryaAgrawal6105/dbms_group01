@@ -262,6 +262,18 @@ export const orderController = {
       // Start a transaction
       await pool.query('START TRANSACTION');
       
+      // Check if there are associated payments
+      const [payments] = await pool.query(
+        'SELECT Payment_id FROM Payment WHERE Order_id = ?',
+        [Order_id]
+      );
+      
+      // Delete associated payments if they exist
+      if (payments.length > 0) {
+        console.log(`Deleting ${payments.length} payments associated with Order ID ${Order_id}`);
+        await pool.query('DELETE FROM Payment WHERE Order_id = ?', [Order_id]);
+      }
+      
       // Get order details to restore stock
       const [details] = await pool.query(
         'SELECT * FROM Order_Details WHERE Order_id = ?',
